@@ -1,19 +1,20 @@
 package io.spe;
 
-import org.bytedeco.javacpp.BytePointer;
-import org.bytedeco.javacpp.Pointer;
-import org.bytedeco.javacpp.PointerPointer;
+import org.bytedeco.javacpp.*;
+import org.bytedeco.libffi.ffi_cif;
 import org.bytedeco.llvm.LLVM.*;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.ref.Cleaner;
 
+import static org.bytedeco.libffi.global.ffi.*;
 import static org.bytedeco.llvm.global.LLVM.*;
 
 public final class Spe {
     private static final Cleaner CLEANER = Cleaner.create();
     // a 'char *' used to retrieve error messages from LLVM
     private static final BytePointer error = new BytePointer();
+    public static LLVMErrorRef err = null;
 
     public static void init() {
         // Initialize LLVM components
@@ -26,7 +27,7 @@ public final class Spe {
 
     public static <T> @NotNull T compile(String name, Class<T> type) {
         LLVMContextRef context = LLVMContextCreate();
-        LLVMTypeRef i32Type = LLVMInt32TypeInContext(context);
+        LLVMOrcThreadSafeContextRef threadContext = LLVMOrcCreateNewThreadSafeContext();
         LLVMModuleRef module = createModule(name, context);
 
         // Verify the module using LLVMVerifier
@@ -41,29 +42,52 @@ public final class Spe {
         LLVMAddNewGVNPass(pm);
         LLVMAddCFGSimplificationPass(pm);
         LLVMRunPassManager(pm, module);
-        LLVMDumpModule(module);
+        //LLVMDumpModule(module);
 
-        // Execute the code using MCJIT
-        LLVMExecutionEngineRef engine = new LLVMExecutionEngineRef();
-        LLVMMCJITCompilerOptions options = new LLVMMCJITCompilerOptions();
-        if (LLVMCreateMCJITCompilerForModule(engine, module, options, 3, error) != 0) {
-            LLVMDisposeMessage(error);
-            throw new RuntimeException("Failed to create JIT compiler: " + error.getString());
+
+        LLVMOrcThreadSafeModuleRef threadModule = LLVMOrcCreateNewThreadSafeModule(module, threadContext);
+        // Execute using OrcJIT
+        LLVMOrcLLJITRef jit = new LLVMOrcLLJITRef();
+        LLVMOrcLLJITBuilderRef jitBuilder = LLVMOrcCreateLLJITBuilder();
+        if ((err = LLVMOrcCreateLLJIT(jit, jitBuilder)) != null) {
+            LLVMConsumeError(err);
+            throw new RuntimeException("Failed to create LLJIT");
+        }
+        LLVMOrcJITDylibRef mainDylib = LLVMOrcLLJITGetMainJITDylib(jit);
+        if ((err = LLVMOrcLLJITAddLLVMIRModule(jit, mainDylib, threadModule)) != null) {
+            System.err.println("Failed to add LLVM IR module: " + LLVMGetErrorMessage(err));
+            LLVMConsumeError(err);
+            throw new RuntimeException("Failed to add LLVM IR module");
+        }
+        final LongPointer res = new LongPointer(1);
+        if ((err = LLVMOrcLLJITLookup(jit, res, name)) != null) {
+            System.err.println("Failed to look up '" + name + "' symbol: " + LLVMGetErrorMessage(err));
+            LLVMConsumeError(err);
+            throw new RuntimeException("Failed to look up '" + name + "' symbol");
         }
 
-        var fun = LLVMGetNamedFunction(module, name);
+        // Call the function
+        ffi_cif cif = new ffi_cif();
+        PointerPointer<Pointer> arguments = new PointerPointer<>(1).put(0, ffi_type_sint());
+        if (ffi_prep_cif(cif, FFI_DEFAULT_ABI(), 1, ffi_type_sint(), arguments) != FFI_OK) {
+            throw new RuntimeException("Failed to prepare the libffi cif");
+        }
 
-        var factorial = new HelloWorld.Factorial(){
+        Pointer function = new Pointer() {{
+            address = res.get();
+        }};
+        var factorial = new HelloWorld.Factorial() {
             @Override
             public int factorial(int n) {
-                LLVMGenericValueRef argument = LLVMCreateGenericValueOfInt(i32Type, n, /* signExtend */ 0);
-                LLVMGenericValueRef result = LLVMRunFunction(engine, fun, /* argumentCount */ 1, argument);
-                return (int) LLVMGenericValueToInt(result, /* signExtend */ 0);
+                PointerPointer<Pointer> values = new PointerPointer<>(1).put(0, new IntPointer(1).put(n));
+                IntPointer returns = new IntPointer(1);
+                ffi_call(cif, function, returns, values);
+                return returns.get();
             }
         };
         CLEANER.register(factorial, () -> {
             // Stage 6: Dispose of the allocated resources
-            LLVMDisposeExecutionEngine(engine);
+            LLVMOrcDisposeLLJIT(jit);
             LLVMDisposePassManager(pm);
             //LLVMDisposeBuilder(builder);
             LLVMContextDispose(context);

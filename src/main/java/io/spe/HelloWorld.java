@@ -9,7 +9,7 @@ public class HelloWorld {
         long blackhole = 0;
 
         long time = System.nanoTime();
-        for (int i = 0; i < 10_000; i++) {
+        for (int i = 0; i < 25_000; i++) {
             int result = function.factorial(10);
             //int result = factorial(10);
             blackhole += result;

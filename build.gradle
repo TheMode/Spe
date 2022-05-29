@@ -25,6 +25,9 @@ dependencies {
     implementation 'org.bytedeco:llvm-platform:13.0.1-1.5.7'
     // https://mvnrepository.com/artifact/org.bytedeco/libffi
     implementation 'org.bytedeco:libffi-platform:3.4.2-1.5.7'
+
+    // https://mvnrepository.com/artifact/org.bytedeco/libffi-platform
+    implementation 'org.bytedeco:libffi-platform:3.4.2-1.5.7'
 }
 
 test {
