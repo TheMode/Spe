@@ -28,7 +28,7 @@ public final class Spe {
     }
 
     public static <T> @NotNull T compile(String name, Class<T> type, Supplier<T> fallback) {
-        var module = LLVMModuleCreateWithName(name);
+        LLVMModuleRef module = LLVMModuleCreateWithName(name);
         fillModule(module);
 
         // Verify the module using LLVMVerifier
@@ -69,8 +69,8 @@ public final class Spe {
 
         // Call the function
         ffi_cif cif = new ffi_cif();
-        PointerPointer<Pointer> arguments = new PointerPointer<>(1).put(0, ffi_type_sint());
-        if (ffi_prep_cif(cif, FFI_DEFAULT_ABI(), 1, ffi_type_sint(), arguments) != FFI_OK) {
+        PointerPointer<Pointer> arguments = new PointerPointer<>(1).put(0, ffi_type_sint);
+        if (ffi_prep_cif(cif, FFI_DEFAULT_ABI, 1, ffi_type_sint, arguments) != FFI_OK) {
             throw new RuntimeException("Failed to prepare the libffi cif");
         }
 
@@ -80,7 +80,7 @@ public final class Spe {
         var factorial = new HelloWorld.Factorial() {
             @Override
             public int factorial(int n) {
-                PointerPointer<Pointer> values = new PointerPointer<>(1).put(0, new IntPointer(1).put(n));
+                PointerPointer<Pointer> values = new PointerPointer<>(1).put(new IntPointer(1).put(n));
                 IntPointer returns = new IntPointer(1);
                 ffi_call(cif, function, returns, values);
                 return returns.get();
@@ -90,7 +90,6 @@ public final class Spe {
             // Stage 6: Dispose of the allocated resources
             LLVMOrcDisposeLLJIT(jit);
             LLVMDisposePassManager(pm);
-            //LLVMDisposeBuilder(builder);
         });
         return (T) factorial;
     }
@@ -117,8 +116,7 @@ public final class Spe {
 
             LLVMPositionBuilderAtEnd(builder, ifFalse);
             LLVMValueRef nMinusOne = LLVMBuildSub(builder, n, one, "nMinusOne = n - 1");
-            PointerPointer<Pointer> arguments = new PointerPointer<>(1)
-                    .put(0, nMinusOne);
+            PointerPointer<Pointer> arguments = new PointerPointer<>(1).put(0, nMinusOne);
             LLVMValueRef factorialResult = LLVMBuildCall2(builder, factorialType, factorial, arguments, 1, "factorialResult = factorial(nMinusOne)");
             LLVMValueRef resultIfFalse = LLVMBuildMul(builder, n, factorialResult, "resultIfFalse = n * factorialResult");
             LLVMBuildBr(builder, exit);
