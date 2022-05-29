@@ -6,6 +6,7 @@ import org.bytedeco.llvm.LLVM.*;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.ref.Cleaner;
+import java.util.function.Supplier;
 
 import static org.bytedeco.libffi.global.ffi.*;
 import static org.bytedeco.llvm.global.LLVM.*;
@@ -25,7 +26,7 @@ public final class Spe {
         LLVMInitializeNativeTarget();
     }
 
-    public static <T> @NotNull T compile(String name, Class<T> type) {
+    public static <T> @NotNull T compile(String name, Class<T> type, Supplier<T> fallback) {
         LLVMContextRef context = LLVMContextCreate();
         LLVMOrcThreadSafeContextRef threadContext = LLVMOrcCreateNewThreadSafeContext();
         LLVMModuleRef module = createModule(name, context);
