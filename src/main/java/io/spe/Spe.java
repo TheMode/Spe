@@ -5,19 +5,20 @@ import org.bytedeco.libffi.ffi_cif;
 import org.bytedeco.llvm.LLVM.*;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.IOException;
 import java.lang.ref.Cleaner;
 
 import static org.bytedeco.libffi.global.ffi.*;
 import static org.bytedeco.llvm.global.LLVM.*;
 
 public final class Spe {
-    private static final String MAIN = "main";
+    public static final String MAIN = "main";
     private static final Cleaner CLEANER = Cleaner.create();
     // a 'char *' used to retrieve error messages from LLVM
     private static final BytePointer error = new BytePointer();
     public static LLVMErrorRef err = null;
 
-    public static void init() {
+    static {
         // Initialize LLVM components
         LLVMInitializeCore(LLVMGetGlobalPassRegistry());
         LLVMLinkInMCJIT();
@@ -28,12 +29,19 @@ public final class Spe {
 
     public static <T> @NotNull T compile(String name, Class<T> type, T fallback) {
         LLVMModuleRef module = LLVMModuleCreateWithName(name);
-        fillModule(module);
+        LLVMBuilderRef builder = LLVMCreateBuilder();
+        try {
+            SpeCompiler.compile(module, builder, "factorial", fallback.getClass());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } finally {
+            LLVMDisposeBuilder(builder);
+        }
 
         // Verify the module using LLVMVerifier
         if (LLVMVerifyModule(module, LLVMPrintMessageAction, error) != 0) {
             LLVMDisposeMessage(error);
-            throw new RuntimeException("Module verification failed: " + error.getString());
+            throw new RuntimeException();
         }
 
         // Create a pass pipeline using the legacy pass manager
@@ -91,47 +99,5 @@ public final class Spe {
             LLVMDisposePassManager(pm);
         });
         return (T) factorial;
-    }
-
-    private static void fillModule(LLVMModuleRef module) {
-        LLVMBuilderRef builder = LLVMCreateBuilder();
-        try {
-            LLVMTypeRef i32Type = LLVMInt32Type();
-            LLVMTypeRef factorialType = LLVMFunctionType(i32Type, i32Type, /* argumentCount */ 1, /* isVariadic */ 0);
-
-            LLVMValueRef factorial = LLVMAddFunction(module, MAIN, factorialType);
-            LLVMSetFunctionCallConv(factorial, LLVMCCallConv);
-
-            LLVMValueRef n = LLVMGetParam(factorial, 0);
-            LLVMValueRef zero = LLVMConstInt(i32Type, 0, 0);
-            LLVMValueRef one = LLVMConstInt(i32Type, 1, 0);
-            LLVMBasicBlockRef entry = LLVMAppendBasicBlock(factorial, "entry");
-            LLVMBasicBlockRef ifFalse = LLVMAppendBasicBlock(factorial, "if_false");
-            LLVMBasicBlockRef exit = LLVMAppendBasicBlock(factorial, "exit");
-
-            LLVMPositionBuilderAtEnd(builder, entry);
-            LLVMValueRef condition = LLVMBuildICmp(builder, LLVMIntEQ, n, zero, "condition = n == 0");
-            LLVMBuildCondBr(builder, condition, exit, ifFalse);
-
-            LLVMPositionBuilderAtEnd(builder, ifFalse);
-            LLVMValueRef nMinusOne = LLVMBuildSub(builder, n, one, "nMinusOne = n - 1");
-            PointerPointer<Pointer> arguments = new PointerPointer<>(1).put(0, nMinusOne);
-            LLVMValueRef factorialResult = LLVMBuildCall2(builder, factorialType, factorial, arguments, 1, "factorialResult = factorial(nMinusOne)");
-            LLVMValueRef resultIfFalse = LLVMBuildMul(builder, n, factorialResult, "resultIfFalse = n * factorialResult");
-            LLVMBuildBr(builder, exit);
-
-            LLVMPositionBuilderAtEnd(builder, exit);
-            LLVMValueRef phi = LLVMBuildPhi(builder, i32Type, "result");
-            PointerPointer<Pointer> phiValues = new PointerPointer<>(2)
-                    .put(0, one)
-                    .put(1, resultIfFalse);
-            PointerPointer<Pointer> phiBlocks = new PointerPointer<>(2)
-                    .put(0, entry)
-                    .put(1, ifFalse);
-            LLVMAddIncoming(phi, phiValues, phiBlocks, 2);
-            LLVMBuildRet(builder, phi);
-        } finally {
-            LLVMDisposeBuilder(builder);
-        }
     }
 }
