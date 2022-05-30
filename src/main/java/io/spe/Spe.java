@@ -6,7 +6,6 @@ import org.bytedeco.llvm.LLVM.*;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.ref.Cleaner;
-import java.util.function.Supplier;
 
 import static org.bytedeco.libffi.global.ffi.*;
 import static org.bytedeco.llvm.global.LLVM.*;
@@ -27,7 +26,7 @@ public final class Spe {
         LLVMInitializeNativeTarget();
     }
 
-    public static <T> @NotNull T compile(String name, Class<T> type, Supplier<T> fallback) {
+    public static <T> @NotNull T compile(String name, Class<T> type, T fallback) {
         LLVMModuleRef module = LLVMModuleCreateWithName(name);
         fillModule(module);
 
@@ -77,7 +76,7 @@ public final class Spe {
         Pointer function = new Pointer() {{
             address = res.get();
         }};
-        var factorial = new HelloWorld.Factorial() {
+        var factorial = new Factorial() {
             @Override
             public int factorial(int n) {
                 PointerPointer<Pointer> values = new PointerPointer<>(1).put(new IntPointer(1).put(n));
