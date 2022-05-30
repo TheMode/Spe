@@ -10,7 +10,7 @@ public class FactorialTest {
 
     @Test
     public void test() {
-        Factorial function = Spe.compile(Factorial.class, FactorialImpl.class);
+        Factorial function = Spe.compile(FactorialImpl.class);
         assertEquals(1, function.factorial(1));
         assertEquals(2, function.factorial(2));
         assertEquals(6, function.factorial(3));

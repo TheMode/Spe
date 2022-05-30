@@ -15,22 +15,20 @@ import static org.bytedeco.llvm.global.LLVM.*;
 import static org.objectweb.asm.Opcodes.*;
 
 final class SpeCompiler {
-    static void compile(LLVMModuleRef module, LLVMBuilderRef builder,
-                        Class<?> type, Class<?> impl) throws IOException {
-        new SpeCompiler(module, builder, type, impl);
+    static void compile(LLVMModuleRef module, LLVMBuilderRef builder, Class<?> type) throws IOException {
+        new SpeCompiler(module, builder, type);
     }
 
     private final LLVMModuleRef module;
     private final LLVMBuilderRef builder;
-    private final Class<?> type, impl;
+    private final Class<?> type;
 
-    private SpeCompiler(LLVMModuleRef module, LLVMBuilderRef builder, Class<?> type, Class<?> impl) throws IOException {
+    private SpeCompiler(LLVMModuleRef module, LLVMBuilderRef builder, Class<?> type) throws IOException {
         this.module = module;
         this.builder = builder;
         this.type = type;
-        this.impl = impl;
 
-        ClassReader cr = new ClassReader(impl.getName());
+        ClassReader cr = new ClassReader(type.getName());
         var visitor = new SpeClassVisitor();
         cr.accept(visitor, ClassReader.SKIP_DEBUG);
     }

@@ -26,11 +26,11 @@ public final class Spe {
         LLVMInitializeNativeTarget();
     }
 
-    public static <T> @NotNull T compile(Class<T> type, Class<? extends T> fallback) {
+    public static <T> @NotNull T compile(Class<T> type) {
         LLVMModuleRef module = LLVMModuleCreateWithName(type.getSimpleName());
         LLVMBuilderRef builder = LLVMCreateBuilder();
         try {
-            SpeCompiler.compile(module, builder, type, fallback);
+            SpeCompiler.compile(module, builder, type);
         } catch (IOException e) {
             throw new RuntimeException(e);
         } finally {
