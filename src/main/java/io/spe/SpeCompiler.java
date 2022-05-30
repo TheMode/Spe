@@ -40,13 +40,10 @@ final class SpeCompiler {
 
         @Override
         public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
-            for (var method : type.getMethods()) {
-                if (method.getName().equals(name) && Type.getMethodDescriptor(method).equals(descriptor)) {
-                    System.out.println("class " + access + " " + name + " " + descriptor + " " + signature + " " + Arrays.toString(exceptions));
-                    return new SpeMethodVisitor(name, super.visitMethod(access, name, descriptor, signature, exceptions));
-                }
-            }
-            return null;
+            if (name.equals("<init>"))
+                return null; // Constructor not supported
+            System.out.println("class " + access + " " + name + " " + descriptor + " " + signature + " " + Arrays.toString(exceptions));
+            return new SpeMethodVisitor(name, super.visitMethod(access, name, descriptor, signature, exceptions));
         }
     }
 
