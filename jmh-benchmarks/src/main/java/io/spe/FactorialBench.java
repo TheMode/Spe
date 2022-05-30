@@ -20,7 +20,7 @@ public class FactorialBench {
 
     @Setup
     public void setup() {
-        this.factorial = nativeCode ? Spe.compile("factorial", Factorial.class, FactorialImpl.class) : new FactorialImpl();
+        this.factorial = nativeCode ? Spe.compile(Factorial.class, FactorialImpl.class) : new FactorialImpl();
     }
 
     @Benchmark
