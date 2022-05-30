@@ -12,7 +12,6 @@ import static org.bytedeco.libffi.global.ffi.*;
 import static org.bytedeco.llvm.global.LLVM.*;
 
 public final class Spe {
-    public static final String MAIN = "main";
     private static final Cleaner CLEANER = Cleaner.create();
     // a 'char *' used to retrieve error messages from LLVM
     private static final BytePointer error = new BytePointer();
@@ -31,7 +30,7 @@ public final class Spe {
         LLVMModuleRef module = LLVMModuleCreateWithName(name);
         LLVMBuilderRef builder = LLVMCreateBuilder();
         try {
-            SpeCompiler.compile(module, builder, "factorial", fallback);
+            SpeCompiler.compile(module, builder, type, fallback);
         } catch (IOException e) {
             throw new RuntimeException(e);
         } finally {
@@ -67,12 +66,6 @@ public final class Spe {
             LLVMConsumeError(err);
             throw new RuntimeException("Failed to add LLVM IR module");
         }
-        final LongPointer res = new LongPointer(1);
-        if ((err = LLVMOrcLLJITLookup(jit, res, MAIN)) != null) {
-            System.err.println("Failed to look up '" + MAIN + "' symbol: " + LLVMGetErrorMessage(err));
-            LLVMConsumeError(err);
-            throw new RuntimeException("Failed to look up '" + MAIN + "' symbol");
-        }
 
         // Call the function
         ffi_cif cif = new ffi_cif();
@@ -82,7 +75,7 @@ public final class Spe {
         }
 
         Pointer function = new Pointer() {{
-            address = res.get();
+            address = addressOf(jit, "factorial");
         }};
         var factorial = new Factorial() {
             @Override
@@ -94,10 +87,19 @@ public final class Spe {
             }
         };
         CLEANER.register(factorial, () -> {
-            // Stage 6: Dispose of the allocated resources
+            // Dispose of the allocated resources
             LLVMOrcDisposeLLJIT(jit);
             LLVMDisposePassManager(pm);
         });
         return (T) factorial;
+    }
+
+    private static long addressOf(LLVMOrcLLJITRef jit, String name) {
+        final LongPointer res = new LongPointer(1);
+        if ((err = LLVMOrcLLJITLookup(jit, res, name)) != null) {
+            LLVMConsumeError(err);
+            throw new RuntimeException("Failed to look up symbol");
+        }
+        return res.get();
     }
 }

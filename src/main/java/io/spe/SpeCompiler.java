@@ -16,22 +16,21 @@ import static org.objectweb.asm.Opcodes.*;
 
 final class SpeCompiler {
     static void compile(LLVMModuleRef module, LLVMBuilderRef builder,
-                        String targetMethod, Class<?> clazz) throws IOException {
-        new SpeCompiler(module, builder, targetMethod, clazz);
+                        Class<?> type, Class<?> impl) throws IOException {
+        new SpeCompiler(module, builder, type, impl);
     }
 
     private final LLVMModuleRef module;
     private final LLVMBuilderRef builder;
-    private final String targetMethod;
-    private final Class<?> clazz;
+    private final Class<?> type, impl;
 
-    private SpeCompiler(LLVMModuleRef module, LLVMBuilderRef builder, String targetMethod, Class<?> clazz) throws IOException {
+    private SpeCompiler(LLVMModuleRef module, LLVMBuilderRef builder, Class<?> type, Class<?> impl) throws IOException {
         this.module = module;
         this.builder = builder;
-        this.targetMethod = targetMethod;
-        this.clazz = clazz;
+        this.type = type;
+        this.impl = impl;
 
-        ClassReader cr = new ClassReader(clazz.getName());
+        ClassReader cr = new ClassReader(impl.getName());
         var visitor = new SpeClassVisitor();
         cr.accept(visitor, ClassReader.SKIP_DEBUG);
     }
@@ -43,9 +42,11 @@ final class SpeCompiler {
 
         @Override
         public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
-            if (name.equals(targetMethod)) {
-                System.out.println("class " + access + " " + name + " " + descriptor + " " + signature + " " + Arrays.toString(exceptions));
-                return new SpeMethodVisitor(super.visitMethod(access, name, descriptor, signature, exceptions));
+            for (var method : type.getMethods()) {
+                if (method.getName().equals(name) && Type.getMethodDescriptor(method).equals(descriptor)) {
+                    System.out.println("class " + access + " " + name + " " + descriptor + " " + signature + " " + Arrays.toString(exceptions));
+                    return new SpeMethodVisitor(name, super.visitMethod(access, name, descriptor, signature, exceptions));
+                }
             }
             return null;
         }
@@ -59,10 +60,10 @@ final class SpeCompiler {
 
         Map<Integer, LLVMValueRef> variables = new HashMap<>();
 
-        SpeMethodVisitor(MethodVisitor methodVisitor) {
+        SpeMethodVisitor(String name, MethodVisitor methodVisitor) {
             super(Opcodes.ASM9, methodVisitor);
             this.type = LLVMFunctionType(LLVMInt32Type(), LLVMInt32Type(), 1, 0);
-            this.function = LLVMAddFunction(module, Spe.MAIN, type);
+            this.function = LLVMAddFunction(module, name, type);
             LLVMSetFunctionCallConv(function, LLVMCCallConv);
 
             variables.put(0, function);
