@@ -1,14 +1,18 @@
 package io.spe;
 
-import org.bytedeco.javacpp.*;
-import org.bytedeco.libffi.ffi_cif;
+import org.bytedeco.javacpp.BytePointer;
+import org.bytedeco.javacpp.LongPointer;
 import org.bytedeco.llvm.LLVM.*;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
+import java.lang.foreign.FunctionDescriptor;
+import java.lang.foreign.Linker;
+import java.lang.foreign.MemoryAddress;
+import java.lang.invoke.MethodHandle;
 import java.lang.ref.Cleaner;
 
-import static org.bytedeco.libffi.global.ffi.*;
+import static java.lang.foreign.ValueLayout.JAVA_INT;
 import static org.bytedeco.llvm.global.LLVM.*;
 
 public final class Spe {
@@ -67,23 +71,19 @@ public final class Spe {
             throw new RuntimeException("Failed to add LLVM IR module");
         }
 
-        // Call the function
-        ffi_cif cif = new ffi_cif();
-        PointerPointer<Pointer> arguments = new PointerPointer<>(1).put(0, ffi_type_sint);
-        if (ffi_prep_cif(cif, FFI_DEFAULT_ABI, 1, ffi_type_sint, arguments) != FFI_OK) {
-            throw new RuntimeException("Failed to prepare the libffi cif");
-        }
+        final long address = addressOf(jit, "factorial");
+        final MethodHandle method = Linker.nativeLinker()
+                .downcallHandle(MemoryAddress.ofLong(address),
+                        FunctionDescriptor.of(JAVA_INT, JAVA_INT));
 
-        Pointer function = new Pointer() {{
-            address = addressOf(jit, "factorial");
-        }};
         var factorial = new Factorial() {
             @Override
             public int factorial(int n) {
-                PointerPointer<Pointer> values = new PointerPointer<>(1).put(new IntPointer(1).put(n));
-                IntPointer returns = new IntPointer(1);
-                ffi_call(cif, function, returns, values);
-                return returns.get();
+                try {
+                    return (int) method.invokeExact(n);
+                } catch (Throwable e) {
+                    throw new RuntimeException(e);
+                }
             }
         };
         CLEANER.register(factorial, () -> {
