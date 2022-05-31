@@ -27,6 +27,10 @@ dependencies {
     implementation 'org.jetbrains:annotations:23.0.0'
     // https://mvnrepository.com/artifact/org.bytedeco/llvm
     implementation 'org.bytedeco:llvm-platform:14.0.3-1.5.8-SNAPSHOT'
+    // https://mvnrepository.com/artifact/org.ow2.asm/asm
+    implementation 'org.ow2.asm:asm:9.3'
+    // https://mvnrepository.com/artifact/org.ow2.asm/asm-util
+    implementation 'org.ow2.asm:asm-util:9.3'
 }
 
 test {
@@ -35,5 +39,5 @@ test {
 }
 
 tasks.withType(JavaCompile) {
-    options.compilerArgs += ['--enable-preview', '-Xlint:preview']
+    options.compilerArgs += ['--enable-preview']
 }

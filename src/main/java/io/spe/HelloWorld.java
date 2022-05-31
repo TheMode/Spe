@@ -2,7 +2,7 @@ package io.spe;
 
 public class HelloWorld {
     public static void main(String[] args) {
-        Factorial function = true ? Spe.compile(FactorialImpl.class) : new FactorialImpl();
+        Factorial function = true ? Spe.compile(Factorial.class, FactorialImpl.class) : new FactorialImpl();
 
         long blackhole = 0;
         long time = System.nanoTime();
