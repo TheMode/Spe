@@ -10,7 +10,7 @@ public class IncrementTest {
 
     @Test
     public void intIncr() {
-        IntIncrement function = Spe.compile(IntIncrement.class, IntIncrement.Impl.class);
+        IntIncrement function = Spe.compileAndCreate(IntIncrement.class, IntIncrement.Impl.class);
         assertEquals(0, function.increment(-1));
         assertEquals(1, function.increment(0));
         assertEquals(2, function.increment(1));
