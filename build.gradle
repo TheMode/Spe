@@ -9,6 +9,7 @@ version '1.0-SNAPSHOT'
 
 repositories {
     mavenCentral()
+    maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
 }
 
 dependencies {
@@ -22,9 +23,9 @@ dependencies {
     implementation 'org.jetbrains:annotations:23.0.0'
 
     // https://mvnrepository.com/artifact/org.bytedeco/llvm
-    implementation 'org.bytedeco:llvm-platform:13.0.1-1.5.7'
+    implementation 'org.bytedeco:llvm-platform:14.0.3-1.5.8-SNAPSHOT'
     // https://mvnrepository.com/artifact/org.bytedeco/libffi-platform
-    implementation 'org.bytedeco:libffi-platform:3.4.2-1.5.7'
+    implementation 'org.bytedeco:libffi-platform:3.4.2-1.5.8-SNAPSHOT'
 }
 
 test {

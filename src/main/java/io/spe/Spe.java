@@ -98,7 +98,7 @@ public final class Spe {
         final LongPointer res = new LongPointer(1);
         if ((err = LLVMOrcLLJITLookup(jit, res, name)) != null) {
             LLVMConsumeError(err);
-            throw new RuntimeException("Failed to look up symbol");
+            throw new RuntimeException("Failed to look up symbol: " + name);
         }
         return res.get();
     }
