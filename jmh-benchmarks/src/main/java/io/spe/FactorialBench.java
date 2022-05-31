@@ -13,21 +13,26 @@ import java.util.concurrent.TimeUnit;
 @State(Scope.Benchmark)
 public class FactorialBench {
 
-    @Param({"false", "true"})
+    @Param({"true", "false"})
     public boolean nativeCode = true;
 
     Factorial factorial;
 
     @Setup
     public void setup() {
-        this.factorial = nativeCode ? Spe.compile(FactorialImpl.class) : new FactorialImpl();
+        this.factorial = nativeCode ? Spe.compile(Factorial.class, FactorialImpl.class) : new FactorialImpl();
     }
 
     @Benchmark
     public void factorial(Blackhole blackhole) {
-        for (int i = 0; i < 10; i++) {
-            blackhole.consume(1);
+        for (int i = 0; i < 1000; i++) {
+            blackhole.consume(factorial.factorial(10));
         }
+    }
+
+    @FunctionalInterface
+    public interface Factorial {
+        int factorial(int n);
     }
 
     public static final class FactorialImpl implements Factorial {

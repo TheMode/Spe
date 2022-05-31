@@ -6,6 +6,12 @@ plugins {
 group 'io.spe'
 version '1.0-SNAPSHOT'
 
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(19))
+    }
+}
+
 repositories {
     mavenCentral()
     maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
@@ -17,4 +23,17 @@ dependencies {
     implementation 'org.openjdk.jmh:jmh-core:1.35'
     // https://mvnrepository.com/artifact/org.openjdk.jmh/jmh-generator-annprocess
     implementation 'org.openjdk.jmh:jmh-generator-annprocess:1.35'
+    annotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.35'
+}
+
+tasks.withType(me.champeau.jmh.JmhBytecodeGeneratorTask).configureEach {
+    jvmArgs.set(["--enable-preview"])
+}
+
+jmh {
+    jvmArgs = ['--enable-preview']
+}
+
+tasks.withType(JavaCompile) {
+    options.compilerArgs.add("--enable-preview")
 }
