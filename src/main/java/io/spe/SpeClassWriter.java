@@ -7,8 +7,7 @@ import java.lang.foreign.MemoryLayout;
 import java.util.List;
 import java.util.Locale;
 
-import static java.lang.foreign.ValueLayout.JAVA_INT;
-import static java.lang.foreign.ValueLayout.JAVA_LONG;
+import static java.lang.foreign.ValueLayout.*;
 import static org.objectweb.asm.Opcodes.*;
 
 final class SpeClassWriter {
@@ -123,28 +122,39 @@ final class SpeClassWriter {
     }
 
     private static String getter(MemoryLayout layout) {
-        if (layout == JAVA_INT) {
-            return "JAVA_INT";
-        } else if (layout == JAVA_LONG) {
-            return "JAVA_LONG";
-        }
+        if (layout == JAVA_BOOLEAN) return "JAVA_BOOLEAN";
+        if (layout == JAVA_BYTE) return "JAVA_BYTE";
+        if (layout == JAVA_CHAR) return "JAVA_CHAR";
+        if (layout == JAVA_SHORT) return "JAVA_SHORT";
+        if (layout == JAVA_INT) return "JAVA_INT";
+        if (layout == JAVA_LONG) return "JAVA_LONG";
+        if (layout == JAVA_DOUBLE) return "JAVA_DOUBLE";
+        if (layout == JAVA_FLOAT) return "JAVA_FLOAT";
         throw new IllegalArgumentException("Unsupported layout: " + layout);
     }
 
     private static int loadOpcode(Class<?> type) {
-        if (type == int.class) {
+        if (type == boolean.class || type == byte.class || type == char.class || type == short.class || type == int.class) {
             return ILOAD;
         } else if (type == long.class) {
             return LLOAD;
+        } else if (type == float.class) {
+            return FLOAD;
+        } else if (type == double.class) {
+            return DLOAD;
         }
         throw new IllegalArgumentException("Unsupported layout: " + type);
     }
 
     private static int returnOpcode(Class<?> type) {
-        if (type == int.class) {
+        if (type == boolean.class || type == byte.class || type == char.class || type == short.class || type == int.class) {
             return IRETURN;
         } else if (type == long.class) {
             return LRETURN;
+        } else if (type == float.class) {
+            return FRETURN;
+        } else if (type == double.class) {
+            return DRETURN;
         }
         throw new IllegalArgumentException("Unsupported layout: " + type);
     }

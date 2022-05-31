@@ -182,8 +182,13 @@ final class SpeCompiler {
 
     private static LLVMTypeRef jvmTypeToLLVM(Type type){
         return switch (type.getSort()){
+            case Type.BOOLEAN -> LLVMInt1Type();
+            case Type.BYTE -> LLVMInt8Type();
+            case Type.CHAR, Type.SHORT -> LLVMInt16Type();
             case Type.INT -> LLVMInt32Type();
             case Type.LONG -> LLVMInt64Type();
+            case Type.FLOAT -> LLVMFloatType();
+            case Type.DOUBLE -> LLVMDoubleType();
             default -> throw new IllegalArgumentException("Unsupported type: " + type);
         };
     }
