@@ -6,27 +6,27 @@ import org.bytedeco.llvm.LLVM.*;
 import org.objectweb.asm.*;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.lang.reflect.Method;
+import java.util.*;
 
 import static org.bytedeco.llvm.global.LLVM.*;
 import static org.objectweb.asm.Opcodes.*;
 
 final class SpeCompiler {
-    static void compile(LLVMModuleRef module, LLVMBuilderRef builder, Class<?> type) throws IOException {
-        new SpeCompiler(module, builder, type);
+    static void compile(LLVMModuleRef module, LLVMBuilderRef builder, Class<?> type, List<Method> methods) throws IOException {
+        new SpeCompiler(module, builder, type, methods);
     }
 
     private final LLVMModuleRef module;
     private final LLVMBuilderRef builder;
     private final Class<?> type;
+    private final List<Method> methods;
 
-    private SpeCompiler(LLVMModuleRef module, LLVMBuilderRef builder, Class<?> type) throws IOException {
+    private SpeCompiler(LLVMModuleRef module, LLVMBuilderRef builder, Class<?> type, List<Method> methods) throws IOException {
         this.module = module;
         this.builder = builder;
         this.type = type;
+        this.methods = methods;
 
         ClassReader cr = new ClassReader(type.getName());
         var visitor = new SpeClassVisitor();
@@ -42,8 +42,11 @@ final class SpeCompiler {
         public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
             if (name.equals("<init>"))
                 return null; // Constructor not supported
-            System.out.println("class " + access + " " + name + " " + descriptor + " " + signature + " " + Arrays.toString(exceptions));
-            return new SpeMethodVisitor(name, super.visitMethod(access, name, descriptor, signature, exceptions));
+            for (var method : methods) {
+                if (method.getName().equals(name) && Type.getMethodDescriptor(method).equals(descriptor))
+                    return new SpeMethodVisitor(name, descriptor, super.visitMethod(access, name, descriptor, signature, exceptions));
+            }
+            return null;
         }
     }
 
@@ -55,9 +58,11 @@ final class SpeCompiler {
 
         Map<Integer, LLVMValueRef> variables = new HashMap<>();
 
-        SpeMethodVisitor(String name, MethodVisitor methodVisitor) {
+        SpeMethodVisitor(String name, String descriptor, MethodVisitor methodVisitor) {
             super(Opcodes.ASM9, methodVisitor);
-            this.type = LLVMFunctionType(LLVMInt32Type(), LLVMInt32Type(), 1, 0);
+            var returnType = jvmTypeToLLVM(Type.getReturnType(descriptor));
+            var params = Arrays.stream(Type.getArgumentTypes(descriptor)).map(SpeCompiler::jvmTypeToLLVM).toArray(LLVMTypeRef[]::new);
+            this.type = LLVMFunctionType(returnType, new PointerPointer<>(params.length).put(params), 1, 0);
             this.function = LLVMAddFunction(module, name, type);
             LLVMSetFunctionCallConv(function, LLVMCCallConv);
 
@@ -101,10 +106,7 @@ final class SpeCompiler {
                     stack.push(LLVMBuildMul(builder, left, right, "IMUL"));
                 }
 
-                case IRETURN -> {
-                    LLVMValueRef value = stack.pop();
-                    LLVMBuildRet(builder, value);
-                }
+                case IRETURN, LRETURN, FRETURN, DRETURN, ARETURN -> LLVMBuildRet(builder, stack.pop());
                 default -> throw new IllegalArgumentException("Unsupported opcode: " + opcode);
             }
         }
@@ -176,5 +178,13 @@ final class SpeCompiler {
                 default -> throw new IllegalArgumentException("Unsupported opcode: " + opcode);
             }
         }
+    }
+
+    private static LLVMTypeRef jvmTypeToLLVM(Type type){
+        return switch (type.getSort()){
+            case Type.INT -> LLVMInt32Type();
+            case Type.LONG -> LLVMInt64Type();
+            default -> throw new IllegalArgumentException("Unsupported type: " + type);
+        };
     }
 }

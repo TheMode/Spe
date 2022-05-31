@@ -7,12 +7,15 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.lang.foreign.FunctionDescriptor;
+import java.lang.foreign.MemoryLayout;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static java.lang.foreign.ValueLayout.JAVA_INT;
 import static org.bytedeco.llvm.global.LLVM.*;
 
 public final class Spe {
@@ -43,8 +46,10 @@ public final class Spe {
     public static <T> @NotNull SpeFactory<T> compile(Class<T> interfaceType, Class<? extends T> implementationType) {
         LLVMModuleRef module = LLVMModuleCreateWithName(implementationType.getSimpleName());
         LLVMBuilderRef builder = LLVMCreateBuilder();
+
+        final List<Method> affectedMethods = Arrays.stream(interfaceType.getMethods()).filter(method -> (method.getModifiers() & Modifier.ABSTRACT) != 0).toList();
         try {
-            SpeCompiler.compile(module, builder, implementationType);
+            SpeCompiler.compile(module, builder, implementationType, affectedMethods);
         } catch (IOException e) {
             throw new RuntimeException(e);
         } finally {
@@ -82,11 +87,16 @@ public final class Spe {
             throw new RuntimeException("Failed to add LLVM IR module");
         }
 
-        final String methodName = interfaceType.getMethods()[0].getName();
-        final long address = addressOf(jit, methodName);
+        var methodEntries = affectedMethods.stream().map(method -> {
+            final String methodName = method.getName();
+            final long address = addressOf(jit, methodName);
+            final MemoryLayout returnType = SpeSignature.toLayout(method.getReturnType());
+            final MemoryLayout[] parameterTypes = Arrays.stream(method.getParameterTypes()).map(SpeSignature::toLayout).toArray(MemoryLayout[]::new);
+            final FunctionDescriptor descriptor = FunctionDescriptor.of(returnType, parameterTypes);
+            return new SpeClassWriter.MethodEntry(methodName, descriptor, address);
+        }).toList();
 
-        final Class<T> generated = SpeClassWriter.generate(interfaceType,
-                List.of(new SpeClassWriter.MethodEntry(methodName, FunctionDescriptor.of(JAVA_INT, JAVA_INT), address)));
+        final Class<T> generated = SpeClassWriter.generate(interfaceType, methodEntries);
 
         final FactoryImpl<T> factory = new FactoryImpl<>(generated, jit);
         synchronized (Spe.class) {
