@@ -4,6 +4,7 @@ import org.objectweb.asm.*;
 
 import java.lang.foreign.FunctionDescriptor;
 import java.lang.foreign.MemoryLayout;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Locale;
 
@@ -34,8 +35,7 @@ final class SpeClassWriter {
         // Fields
         {
             for (MethodEntry method : methods) {
-                final String constantName = method.constantName();
-                fieldVisitor = classWriter.visitField(ACC_PRIVATE | ACC_FINAL | ACC_STATIC, constantName, "Ljava/lang/invoke/MethodHandle;", null, null);
+                fieldVisitor = classWriter.visitField(ACC_PRIVATE | ACC_FINAL | ACC_STATIC, method.constantName(), "Ljava/lang/invoke/MethodHandle;", null, null);
                 fieldVisitor.visitEnd();
             }
         }
@@ -56,16 +56,16 @@ final class SpeClassWriter {
         }
         // Methods
         {
-            for (var m : interfaceType.getMethods()) {
+            for (Method m : interfaceType.getMethods()) {
                 final String methodName = m.getName();
                 final String methodDescriptor = Type.getMethodDescriptor(m);
                 final String constantName = toConstantName(methodName);
                 methodVisitor = classWriter.visitMethod(ACC_PUBLIC, methodName, methodDescriptor, null, null);
                 methodVisitor.visitCode();
                 methodVisitor.visitFieldInsn(GETSTATIC, className, constantName, "Ljava/lang/invoke/MethodHandle;");
-                methodVisitor.visitVarInsn(loadOpcode(m.getReturnType()), 1);
+                methodVisitor.visitVarInsn(SpeSignature.loadOpcode(m.getReturnType()), 1);
                 methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/lang/invoke/MethodHandle", "invokeExact", methodDescriptor, false);
-                methodVisitor.visitInsn(returnOpcode(m.getReturnType()));
+                methodVisitor.visitInsn(SpeSignature.returnOpcode(m.getReturnType()));
             }
             methodVisitor.visitMaxs(-1, -1);
             methodVisitor.visitEnd();
@@ -74,30 +74,26 @@ final class SpeClassWriter {
         {
             methodVisitor = classWriter.visitMethod(ACC_STATIC, "<clinit>", "()V", null, null);
             methodVisitor.visitCode();
-            for (var entry : methods) {
+            for (MethodEntry entry : methods) {
                 final String constantName = entry.constantName();
                 methodVisitor.visitMethodInsn(INVOKESTATIC, "java/lang/foreign/Linker", "nativeLinker", "()Ljava/lang/foreign/Linker;", true);
                 methodVisitor.visitLdcInsn(entry.address());
                 methodVisitor.visitMethodInsn(INVOKESTATIC, "java/lang/foreign/MemoryAddress", "ofLong", "(J)Ljava/lang/foreign/MemoryAddress;", true);
-
                 // Return
-                var returnLayout = entry.descriptor().returnLayout().get();
+                final MemoryLayout returnLayout = entry.descriptor().returnLayout().get();
                 methodVisitor.visitFieldInsn(GETSTATIC, "java/lang/foreign/ValueLayout", getter(returnLayout), Type.getDescriptor(returnLayout.getClass()));
-
                 // Arguments
                 final List<MemoryLayout> argumentTypes = entry.descriptor().argumentLayouts();
-                methodVisitor.visitLdcInsn(argumentTypes.size());
-                //methodVisitor.visitInsn(ICONST_1);
+                appendInteger(methodVisitor, argumentTypes.size());
                 methodVisitor.visitTypeInsn(ANEWARRAY, "java/lang/foreign/MemoryLayout");
                 methodVisitor.visitInsn(DUP);
                 for (int i = 0; i < argumentTypes.size(); i++) {
-                    methodVisitor.visitLdcInsn(i);
-                    //methodVisitor.visitInsn(ICONST_0);
+                    appendInteger(methodVisitor, i);
                     final MemoryLayout layout = argumentTypes.get(i);
                     methodVisitor.visitFieldInsn(GETSTATIC, "java/lang/foreign/ValueLayout", getter(layout), Type.getDescriptor(layout.getClass()));
                     methodVisitor.visitInsn(AASTORE);
                 }
-
+                // Create method handle
                 methodVisitor.visitMethodInsn(INVOKESTATIC, "java/lang/foreign/FunctionDescriptor", "of", "(Ljava/lang/foreign/MemoryLayout;[Ljava/lang/foreign/MemoryLayout;)Ljava/lang/foreign/FunctionDescriptor;", false);
                 methodVisitor.visitMethodInsn(INVOKEINTERFACE, "java/lang/foreign/Linker", "downcallHandle", "(Ljava/lang/foreign/Addressable;Ljava/lang/foreign/FunctionDescriptor;)Ljava/lang/invoke/MethodHandle;", true);
                 methodVisitor.visitFieldInsn(PUTSTATIC, className, constantName, "Ljava/lang/invoke/MethodHandle;");
@@ -133,29 +129,8 @@ final class SpeClassWriter {
         throw new IllegalArgumentException("Unsupported layout: " + layout);
     }
 
-    private static int loadOpcode(Class<?> type) {
-        if (type == boolean.class || type == byte.class || type == char.class || type == short.class || type == int.class) {
-            return ILOAD;
-        } else if (type == long.class) {
-            return LLOAD;
-        } else if (type == float.class) {
-            return FLOAD;
-        } else if (type == double.class) {
-            return DLOAD;
-        }
-        throw new IllegalArgumentException("Unsupported layout: " + type);
-    }
-
-    private static int returnOpcode(Class<?> type) {
-        if (type == boolean.class || type == byte.class || type == char.class || type == short.class || type == int.class) {
-            return IRETURN;
-        } else if (type == long.class) {
-            return LRETURN;
-        } else if (type == float.class) {
-            return FRETURN;
-        } else if (type == double.class) {
-            return DRETURN;
-        }
-        throw new IllegalArgumentException("Unsupported layout: " + type);
+    private static void appendInteger(MethodVisitor methodVisitor, int n) {
+        if (n >= 0 && n <= 5) methodVisitor.visitInsn(ICONST_0 + n);
+        else methodVisitor.visitLdcInsn(n);
     }
 }
