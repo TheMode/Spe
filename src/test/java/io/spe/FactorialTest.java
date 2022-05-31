@@ -24,6 +24,11 @@ public class FactorialTest {
         assertEquals(39916800, function.factorial(11));
     }
 
+    @FunctionalInterface
+    public interface Factorial {
+        int factorial(int n);
+    }
+
     private static final class FactorialImpl implements Factorial {
         @Override
         public int factorial(int n) {
