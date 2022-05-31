@@ -57,6 +57,7 @@ public final class Spe {
         }
 
         // Verify the module using LLVMVerifier
+        LLVMDumpModule(module);
         if (LLVMVerifyModule(module, LLVMPrintMessageAction, error) != 0) {
             LLVMDisposeMessage(error);
             throw new RuntimeException();
@@ -69,7 +70,6 @@ public final class Spe {
         LLVMAddCFGSimplificationPass(pm);
         LLVMRunPassManager(pm, module);
         LLVMDisposePassManager(pm);
-        LLVMDumpModule(module);
 
         LLVMOrcThreadSafeContextRef threadContext = LLVMOrcCreateNewThreadSafeContext();
         LLVMOrcThreadSafeModuleRef threadModule = LLVMOrcCreateNewThreadSafeModule(module, threadContext);
