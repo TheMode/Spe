@@ -87,6 +87,8 @@ final class SpeCompiler {
                 case DCONST_0 -> stack.push(LLVMConstReal(LLVMDoubleType(), 0.0));
                 case DCONST_1 -> stack.push(LLVMConstReal(LLVMDoubleType(), 1.0));
 
+                case IADD -> stack.push(LLVMBuildAdd(builder, stack.pop(), stack.pop(), "IADD"));
+
                 case ISUB -> {
                     LLVMValueRef right = stack.pop();
                     LLVMValueRef left = stack.pop();
@@ -111,6 +113,13 @@ final class SpeCompiler {
         public void visitIntInsn(int opcode, int operand) {
             System.out.println("int " + opcode + " " + operand);
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void visitIincInsn(int varIndex, int increment) {
+            System.out.println("incr int " + varIndex + " " + increment);
+            LLVMValueRef value = variables.get(varIndex);
+            variables.put(varIndex, LLVMBuildAdd(builder, value, LLVMConstInt(LLVMInt32Type(), increment, 0), "int increment"));
         }
 
         @Override

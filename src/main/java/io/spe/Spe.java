@@ -70,9 +70,10 @@ public final class Spe {
             throw new RuntimeException("Failed to add LLVM IR module");
         }
 
-        final long address = addressOf(jit, "factorial");
+        final String methodName = interfaceType.getMethods()[0].getName();
+        final long address = addressOf(jit, methodName);
         final Class<T> generated = SpeClassWriter.generate(interfaceType,
-                List.of(new SpeClassWriter.MethodEntry("factorial", FunctionDescriptor.of(JAVA_INT, JAVA_INT), address)));
+                List.of(new SpeClassWriter.MethodEntry(methodName, FunctionDescriptor.of(JAVA_INT, JAVA_INT), address)));
 
         final T factorial;
         try {
