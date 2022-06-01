@@ -25,9 +25,11 @@ public class FactorialBench {
 
     @Benchmark
     public void factorial(Blackhole blackhole) {
+        long sum = 0;
         for (int i = 0; i < 1000; i++) {
-            blackhole.consume(factorial.factorial(10));
+            sum += factorial.factorial(10);
         }
+        blackhole.consume(sum);
     }
 
     @FunctionalInterface
