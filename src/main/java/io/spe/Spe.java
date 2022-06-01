@@ -7,7 +7,6 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.lang.foreign.FunctionDescriptor;
-import java.lang.foreign.MemoryLayout;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -90,9 +89,7 @@ public final class Spe {
         var methodEntries = affectedMethods.stream().map(method -> {
             final String methodName = method.getName();
             final long address = addressOf(jit, methodName);
-            final MemoryLayout returnType = SpeSignature.toLayout(method.getReturnType());
-            final MemoryLayout[] parameterTypes = Arrays.stream(method.getParameterTypes()).map(SpeSignature::toLayout).toArray(MemoryLayout[]::new);
-            final FunctionDescriptor descriptor = FunctionDescriptor.of(returnType, parameterTypes);
+            final FunctionDescriptor descriptor = SpeSignature.descriptor(method.getReturnType(), method.getParameterTypes());
             return new SpeClassWriter.MethodEntry(methodName, descriptor, address);
         }).toList();
 

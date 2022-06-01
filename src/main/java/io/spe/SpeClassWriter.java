@@ -79,25 +79,37 @@ final class SpeClassWriter {
             methodVisitor.visitCode();
             for (MethodEntry entry : methods) {
                 final String constantName = entry.constantName();
+                // Address
                 methodVisitor.visitMethodInsn(INVOKESTATIC, "java/lang/foreign/Linker", "nativeLinker", "()Ljava/lang/foreign/Linker;", true);
                 methodVisitor.visitLdcInsn(entry.address());
                 methodVisitor.visitMethodInsn(INVOKESTATIC, "java/lang/foreign/MemoryAddress", "ofLong", "(J)Ljava/lang/foreign/MemoryAddress;", true);
                 // Return
-                final MemoryLayout returnLayout = entry.descriptor().returnLayout().get();
-                methodVisitor.visitFieldInsn(GETSTATIC, "java/lang/foreign/ValueLayout", getter(returnLayout), Type.getDescriptor(returnLayout.getClass()));
+                final MemoryLayout returnLayout = entry.descriptor().returnLayout().orElse(null);
+                if (returnLayout != null) {
+                    methodVisitor.visitFieldInsn(GETSTATIC, "java/lang/foreign/ValueLayout", getter(returnLayout), Type.getDescriptor(returnLayout.getClass()));
+                }
                 // Arguments
                 final List<MemoryLayout> argumentTypes = entry.descriptor().argumentLayouts();
-                appendInteger(methodVisitor, argumentTypes.size());
+                final int argumentCount = argumentTypes.size();
+                appendInteger(methodVisitor, argumentCount);
                 methodVisitor.visitTypeInsn(ANEWARRAY, "java/lang/foreign/MemoryLayout");
-                methodVisitor.visitInsn(DUP);
-                for (int i = 0; i < argumentTypes.size(); i++) {
-                    appendInteger(methodVisitor, i);
-                    final MemoryLayout layout = argumentTypes.get(i);
-                    methodVisitor.visitFieldInsn(GETSTATIC, "java/lang/foreign/ValueLayout", getter(layout), Type.getDescriptor(layout.getClass()));
-                    methodVisitor.visitInsn(AASTORE);
+                if (argumentCount > 0) {
+                    methodVisitor.visitInsn(DUP);
+                    for (int i = 0; i < argumentCount; i++) {
+                        appendInteger(methodVisitor, i);
+                        final MemoryLayout layout = argumentTypes.get(i);
+                        methodVisitor.visitFieldInsn(GETSTATIC, "java/lang/foreign/ValueLayout", getter(layout), Type.getDescriptor(layout.getClass()));
+                        methodVisitor.visitInsn(AASTORE);
+                    }
                 }
                 // Create method handle
-                methodVisitor.visitMethodInsn(INVOKESTATIC, "java/lang/foreign/FunctionDescriptor", "of", "(Ljava/lang/foreign/MemoryLayout;[Ljava/lang/foreign/MemoryLayout;)Ljava/lang/foreign/FunctionDescriptor;", false);
+                if (returnLayout != null) {
+                    // FunctionDescriptor#of(MemoryLayout, MemoryLayout...)
+                    methodVisitor.visitMethodInsn(INVOKESTATIC, "java/lang/foreign/FunctionDescriptor", "of", "(Ljava/lang/foreign/MemoryLayout;[Ljava/lang/foreign/MemoryLayout;)Ljava/lang/foreign/FunctionDescriptor;", false);
+                } else {
+                    // FunctionDescriptor#ofVoid(MemoryLayout...)
+                    methodVisitor.visitMethodInsn(INVOKESTATIC, "java/lang/foreign/FunctionDescriptor", "ofVoid", "([Ljava/lang/foreign/MemoryLayout;)Ljava/lang/foreign/FunctionDescriptor;", false);
+                }
                 methodVisitor.visitMethodInsn(INVOKEINTERFACE, "java/lang/foreign/Linker", "downcallHandle", "(Ljava/lang/foreign/Addressable;Ljava/lang/foreign/FunctionDescriptor;)Ljava/lang/invoke/MethodHandle;", true);
                 methodVisitor.visitFieldInsn(PUTSTATIC, className, constantName, "Ljava/lang/invoke/MethodHandle;");
             }

@@ -62,12 +62,15 @@ final class SpeCompiler {
             super(Opcodes.ASM9, methodVisitor);
             var returnType = jvmTypeToLLVM(Type.getReturnType(descriptor));
             var params = Arrays.stream(Type.getArgumentTypes(descriptor)).map(SpeCompiler::jvmTypeToLLVM).toArray(LLVMTypeRef[]::new);
-            this.type = LLVMFunctionType(returnType, new PointerPointer<>(params.length).put(params), 1, 0);
+            this.type = LLVMFunctionType(returnType, new PointerPointer<>(params.length).put(params), params.length, 0);
             this.function = LLVMAddFunction(module, name, type);
             LLVMSetFunctionCallConv(function, LLVMCCallConv);
 
             variables.put(0, function);
-            variables.put(1, LLVMGetParam(function, 0));
+            for (int i = 1; i <= params.length; i++) {
+                variables.put(i, LLVMGetParam(function, i - 1));
+                //variables.put(i, LLVMBuildAlloca(builder, params[i - 1], ""));
+            }
 
             LLVMBasicBlockRef entry = LLVMAppendBasicBlock(function, "entry");
             LLVMPositionBuilderAtEnd(builder, entry);
@@ -107,6 +110,7 @@ final class SpeCompiler {
                 }
 
                 case IRETURN, LRETURN, FRETURN, DRETURN, ARETURN -> LLVMBuildRet(builder, stack.pop());
+                case RETURN -> LLVMBuildRetVoid(builder);
                 default -> throw new IllegalArgumentException("Unsupported opcode: " + opcode);
             }
         }
@@ -180,8 +184,9 @@ final class SpeCompiler {
         }
     }
 
-    private static LLVMTypeRef jvmTypeToLLVM(Type type){
-        return switch (type.getSort()){
+    private static LLVMTypeRef jvmTypeToLLVM(Type type) {
+        return switch (type.getSort()) {
+            case Type.VOID -> LLVMVoidType();
             case Type.BOOLEAN -> LLVMInt1Type();
             case Type.BYTE -> LLVMInt8Type();
             case Type.CHAR, Type.SHORT -> LLVMInt16Type();

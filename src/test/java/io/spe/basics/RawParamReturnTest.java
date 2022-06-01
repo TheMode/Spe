@@ -4,10 +4,17 @@ import io.spe.Spe;
 import io.spe.api.SpeTest;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SpeTest
 public class RawParamReturnTest {
+
+    @Test
+    public void voidRun() {
+        Void function = Spe.compileAndCreate(Void.class, Void.Impl.class);
+        assertDoesNotThrow(function::empty);
+    }
 
     @Test
     public void booleanGet() {
@@ -86,6 +93,17 @@ public class RawParamReturnTest {
         assertEquals(1, function.get(1));
         assertEquals(2, function.get(2));
         assertEquals(java.lang.Double.MAX_VALUE, function.get(java.lang.Double.MAX_VALUE));
+    }
+
+    @FunctionalInterface
+    public interface Void {
+        void empty();
+
+        class Impl implements Void {
+            @Override
+            public void empty() {
+            }
+        }
     }
 
     @FunctionalInterface
