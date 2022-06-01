@@ -63,7 +63,10 @@ final class SpeClassWriter {
                 methodVisitor = classWriter.visitMethod(ACC_PUBLIC, methodName, methodDescriptor, null, null);
                 methodVisitor.visitCode();
                 methodVisitor.visitFieldInsn(GETSTATIC, className, constantName, "Ljava/lang/invoke/MethodHandle;");
-                methodVisitor.visitVarInsn(SpeSignature.loadOpcode(m.getReturnType()), 1);
+                final Class<?>[] param = m.getParameterTypes();
+                for (int i = 0; i < param.length; i++) {
+                    methodVisitor.visitVarInsn(SpeSignature.loadOpcode(param[i]), i + 1);
+                }
                 methodVisitor.visitMethodInsn(INVOKEVIRTUAL, "java/lang/invoke/MethodHandle", "invokeExact", methodDescriptor, false);
                 methodVisitor.visitInsn(SpeSignature.returnOpcode(m.getReturnType()));
             }
