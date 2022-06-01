@@ -1,5 +1,6 @@
 package io.spe;
 
+import io.spe.compiler.SpeCompiler;
 import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacpp.LongPointer;
 import org.bytedeco.llvm.LLVM.*;

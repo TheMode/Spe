@@ -1,4 +1,4 @@
-package io.spe;
+package io.spe.compiler;
 
 import org.bytedeco.javacpp.Pointer;
 import org.bytedeco.javacpp.PointerPointer;
@@ -12,8 +12,8 @@ import java.util.*;
 import static org.bytedeco.llvm.global.LLVM.*;
 import static org.objectweb.asm.Opcodes.*;
 
-final class SpeCompiler {
-    static void compile(LLVMModuleRef module, LLVMBuilderRef builder, Class<?> type, List<Method> methods) throws IOException {
+public final class SpeCompiler {
+    public static void compile(LLVMModuleRef module, LLVMBuilderRef builder, Class<?> type, List<Method> methods) throws IOException {
         new SpeCompiler(module, builder, type, methods);
     }
 
