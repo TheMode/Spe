@@ -36,10 +36,10 @@ public class RawParamReturnTest {
     @Test
     public void charGet() {
         Char function = Spe.compileAndCreate(Char.class, Char.Impl.class);
-        assertEquals(java.lang.Character.MIN_VALUE, function.get(java.lang.Character.MIN_VALUE));
+        assertEquals(Character.MIN_VALUE, function.get(Character.MIN_VALUE));
         assertEquals(0, function.get((char) 0));
         assertEquals(1, function.get((char) 1));
-        assertEquals(java.lang.Character.MAX_VALUE, function.get(java.lang.Character.MAX_VALUE));
+        assertEquals(Character.MAX_VALUE, function.get(Character.MAX_VALUE));
     }
 
     @Test

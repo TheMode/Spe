@@ -1,5 +1,6 @@
-package io.spe;
+package spe;
 
+import io.spe.Spe;
 import org.openjdk.jmh.annotations.*;
 
 import java.util.concurrent.TimeUnit;

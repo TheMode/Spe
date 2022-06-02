@@ -97,7 +97,7 @@ public final class Spe {
         final Class<T> generated = SpeClassWriter.generate(interfaceType, methodEntries);
 
         final FactoryImpl<T> factory = new FactoryImpl<>(generated, jit);
-        synchronized (Spe.class) {
+        synchronized (SpeAccess.class) {
             FACTORIES.put(implementationType, factory);
         }
         return factory;

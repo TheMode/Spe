@@ -1,24 +1,9 @@
 plugins {
-    id 'java'
     id("me.champeau.jmh") version("0.6.6")
 }
 
-group 'io.spe'
-version '1.0-SNAPSHOT'
-
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(19))
-    }
-}
-
-repositories {
-    mavenCentral()
-    maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
-}
-
 dependencies {
-    implementation(rootProject)
+    implementation project(':compiler')
     // https://mvnrepository.com/artifact/org.openjdk.jmh/jmh-core
     implementation 'org.openjdk.jmh:jmh-core:1.35'
     // https://mvnrepository.com/artifact/org.openjdk.jmh/jmh-generator-annprocess

@@ -1,2 +1,4 @@
 rootProject.name = 'Spe'
+include 'api'
+include 'compiler'
 include 'jmh-benchmarks'
